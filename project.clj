@@ -5,10 +5,10 @@
             :url "https://opensource.org/licenses/MIT"}
 
   :dependencies [[org.clojure/clojure "1.12.0"]
-                 [clj-time "0.14.2"]
+                 [clj-time "0.15.2"]
                  [com.datomic/peer "1.0.7260"]
                  [environ "1.1.0"]
-                 [camel-snake-kebab "0.4.0"]
+                 [camel-snake-kebab "0.4.3"]
                  [org.clojure/tools.cli "1.1.230"]]
 
   :eval-in-leiningen true

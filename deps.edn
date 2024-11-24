@@ -1,6 +1,6 @@
 {:deps
- {clj-time {:mvn/version "0.14.2"}
+ {clj-time {:mvn/version "0.15.2"}
   environ {:mvn/version "1.1.0"}
-  camel-snake-kebab {:mvn/version "0.4.0"}
+  camel-snake-kebab {:mvn/version "0.4.3"}
   org.clojure/tools.cli {:mvn/version "1.1.230"}
   com.datomic/peer {:mvn/version "1.0.7260"}}}
