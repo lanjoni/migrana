@@ -83,7 +83,7 @@ Let's assume you have a Datomic schema file on `resources/schema.edn`:
  {:db/ident :relationship-status/single}
  {:db/ident :relationship-status/married}
  {:db/ident :relationship-status/divorced}
- {:db/ident :relationship-status/widowed}]]
+ {:db/ident :relationship-status/widowed}]
 ```
 
 Then run:
@@ -144,7 +144,7 @@ Let's change our `resources/schema.edn` to:
  {:db/ident :relationship-status/single}
  {:db/ident :relationship-status/married}
  {:db/ident :relationship-status/divorced}
- {:db/ident :relationship-status/widowed}]]
+ {:db/ident :relationship-status/widowed}]
 ```
 
 After the change we run `lein migrana run` again:
