@@ -7,10 +7,14 @@
             [migrana.core :as core]))
 
 (def ^:private cli-options
-  [["-s" "--schema SCHEMA_FILE" "Schema file (default resources/schema.edn)"
-    :id :schema]
-   ["-m" "--migrations MIGRATIONS_PATH" "Migrations path (default resources/migrations/)"
-    :id :migrations]
+  [["-s" "--schema SCHEMA_FILE" "Schema file"
+    :id :schema
+    :default "resources/schema.edn"]
+
+   ["-m" "--migrations MIGRATIONS_PATH" "Migrations path"
+    :id :migrations
+    :default "resources/migrations/"]
+
    [nil "--no-inference" "Runs with no schema change inference"
     :id :no-inference
     :default false]])
@@ -24,16 +28,26 @@
   [project args]
   (if-let [uri (or (second args) (environ/env :datomic-uri))]
     (core/info uri)
-    (main/abort "Must specify <URI>. More details: $ lein help migrana info"))  )
+    (main/abort "Must specify <URI>. More details: $ lein help migrana info")))
 
 (defn create
   "Creates new manual migration.
 
   Syntax: lein migrana create <name>"
   [project args]
-  (if-let [n (second args)]
-    (core/create n)
-    (main/abort "Must specify <name>. More details: $ lein help migrana name")))
+  (let [{:keys [options arguments errors summary]} (parse-opts args cli-options)
+        n (second arguments)]
+    (cond
+      errors
+      (do
+        (println "Error parsing options:" (clojure.string/join "\n" errors))
+        (main/abort summary))
+
+      (nil? n)
+      (main/abort "Must specify <name>. More details: $ lein help migrana name")
+
+      :else
+      (core/create n options))))
 
 (defn dry-run
   "Simulates what `run` would do.
@@ -42,9 +56,19 @@
 
   <URI> defaults to environment variable $DATOMIC_URI if available."
   [project args]
-  (if-let [uri (or (second args) (environ/env :datomic-uri))]
-    (core/dry-run uri)
-    (main/abort "Must specify <URI>. More details: $ lein help migrana dry-run")))
+  (let [{:keys [options arguments errors summary]} (parse-opts args cli-options)
+        uri (or (second arguments) (environ/env :datomic-uri))]
+    (cond
+      errors
+      (do
+        (println "Error parsing options:" (clojure.string/join "\n" errors))
+        (main/abort summary))
+
+      (nil? uri)
+      (main/abort "Must specify <URI>. More details: $ lein help migrana dry-run")
+
+      :else
+      (core/dry-run uri options))))
 
 (defn run
   "Transacts pending migrations onto database.
@@ -53,9 +77,19 @@
 
   <URI> defaults to environment variable $DATOMIC_URI if available."
   [project args]
-  (if-let [uri (or (second args) (environ/env :datomic-uri))]
-    (core/run uri)
-    (main/abort "Must specify <URI>. More details: $ lein help migrana run")))
+  (let [{:keys [options arguments errors summary]} (parse-opts args cli-options)
+        uri (or (second arguments) (environ/env :datomic-uri))]
+    (cond
+      errors
+      (do
+        (println "Error parsing options:" (clojure.string/join "\n" errors))
+        (main/abort summary))
+
+      (nil? uri)
+      (main/abort "Must specify <URI>. More details: $ lein help migrana run")
+
+      :else
+      (core/run uri options))))
 
 (defn set-db
   "Sets the database timestamp.

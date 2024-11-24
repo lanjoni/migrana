@@ -13,10 +13,6 @@
 
 (def ^:private inference-suffix "_schema_inference.edn")
 
-(def ^:private schema-path "resources/schema.edn")
-
-(def ^:private migrations-path "resources/migrations/")
-
 (def ^:private migrana-schema
   [{:db/ident :migrana/migration
     :db/valueType :db.type/keyword
@@ -76,14 +72,14 @@
     (let [payload (concat (flatten-tx-data conn tx)
                           [{:migrana/migration :current
                             :migrana/timestamp (:timestamp tx)
-                            :migrana/schema (prn-str (:schema tx))}])] 
+                            :migrana/schema (prn-str (:schema tx))}])]
       @(datomic/transact conn payload))))
 
 (defn ^:private print-left-behind-changes
   [txs]
   (doseq [tx txs]
     (println "=> Would transact" (:timestamp tx))
-    (if (:tx-fn tx) (println "... would evaluate" (:tx-fn tx) "for" ))))
+    (when (:tx-fn tx) (println "... would evaluate" (:tx-fn tx) "for"))))
 
 (defn ^:private new-time-stamp
   "Returns a new time stamp based on local time"
@@ -101,16 +97,16 @@
 (defn ^:private build-new-inference
   "Compares the schema in the DB and on disk and creates an inferred migration file if there
   are differences."
-  [conn]
+  [conn options]
   (let [{:keys [migrana/timestamp migrana/schema]} (current-db-info conn)
-        schema-on-disk (-> schema-path slurp edn/read-string)
+        schema-on-disk (-> (:schema options) slurp edn/read-string)
         diff (data/diff (set schema-on-disk) (set (edn/read-string schema)))
         gap-on-disk (vec (first diff))]
-    (if (> (count gap-on-disk) 0) 
+    (if (> (count gap-on-disk) 0)
       (let [new-ts (new-time-stamp)
-            migration-name (str migrations-path new-ts inference-suffix)]
+            migration-name (str (:migrations options) new-ts inference-suffix)]
         (println "=> Schema changes detected")
-        (.mkdir (io/file migrations-path))
+        (.mkdir (io/file (:migrations options)))
         (spit migration-name
               (with-out-str
                 (pprint/pprint {:tx-data gap-on-disk
@@ -120,9 +116,9 @@
       false)))
 
 (defn ^:private dryrun-new-inference
-  [last-tx]
+  [last-tx options]
   (let [{:keys [timestamp schema]} last-tx
-        schema-on-disk (-> schema-path slurp edn/read-string)
+        schema-on-disk (-> (:schema options) slurp edn/read-string)
         diff (data/diff (set schema-on-disk) (set schema))
         gap-on-disk (vec (first diff))]
     (if (> (count gap-on-disk) 0)
@@ -139,11 +135,11 @@
 
 (defn ^:private migration-files
   "Returns seq with all the migration files in chronological order"
-  []
+  [options]
   (sort
    #(compare (.getName %1)
              (.getName %2))
-   (.listFiles (io/file migrations-path))))
+   (.listFiles (io/file (:migrations options)))))
 
 (defn ^:private pre-process-files
   [files]
@@ -160,9 +156,9 @@
 
 (defn ^:private pre-process-migrations
   "Returns the migrations that still need to be applied to the DB"
-  [conn]
+  [conn options]
   (let [{:keys [migrana/timestamp]} (current-db-info conn)
-        pre-processed-migrations (pre-process-files (migration-files))]
+        pre-processed-migrations (pre-process-files (migration-files options))]
     {:filtered-migrations (filter #(> (compare (:timestamp %) timestamp) 0)
                                   pre-processed-migrations)
      :last-migration (last pre-processed-migrations)}))
@@ -170,8 +166,8 @@
 (defn ^:private transact-to-latest
   "Transacts the DB to the latest state"
   [conn & args]
-  (let [{:keys [dryrun]} (apply hash-map args)
-        pre-processed-migrations (pre-process-migrations conn)
+  (let [{:keys [dryrun options]} (apply hash-map args)
+        pre-processed-migrations (pre-process-migrations conn options)
         left-behind-txs (:filtered-migrations pre-processed-migrations)]
     (if dryrun
       (print-left-behind-changes left-behind-txs)
@@ -182,7 +178,7 @@
   "Connects to URI, makes sure the DB exists and ensures bsasic migrana
   schema is in place"
   [uri]
-  (if-not uri (throw (Throwable. "Must have URI to connect to")))
+  (when-not uri (throw (Throwable. "Must have URI to connect to")))
   (println "=> Connecting to" uri)
   (-> uri
       ensure-db-exists
@@ -192,13 +188,13 @@
 (defn run
   "Connect to the DB, fast forwards it to the latest state in disk, infers new schema
   changes, creates extra migration if needed, and then fast forward to this new state"
-  [uri]
+  [uri options]
   (let [conn (base-uri-connect uri)
         {:keys [migrana/timestamp]} (current-db-info conn)]
     (println "=> DB is currently at" (or timestamp "N/A"))
-    (transact-to-latest conn)
-    (if (build-new-inference conn)
-      (transact-to-latest conn))
+    (transact-to-latest conn :options options)
+    (when (build-new-inference conn options)
+      (transact-to-latest conn :options options))
     (datomic/release conn)
     (println "=> DB is up-to-date!\n")))
 
@@ -213,14 +209,14 @@
 (defn dry-run
   "Similar to apply-run but instead of applying the outstanding migrations it prints
   out what the migrations would do."
-  [uri]
+  [uri options]
   (let [conn (base-uri-connect uri)
         {:keys [migrana/timestamp]} (current-db-info conn)]
     (println "=> DB is currently at" (or timestamp "N/A"))
-    (let [last-tx (:last-migration (transact-to-latest conn :dryrun true))
-          would-infer? (dryrun-new-inference last-tx)]
+    (let [last-tx (:last-migration (transact-to-latest conn :options options :dryrun true))
+          would-infer? (dryrun-new-inference last-tx options)]
       (println "=> Last known migration at" (or (:timestamp last-tx) "N/A"))
-      (if would-infer?
+      (when would-infer?
         (println "=> Would transact inferred schema changes"))
       (if (and
            (= timestamp (:timestamp last-tx))
@@ -233,11 +229,11 @@
 
 (defn create
   "Creates a migration named n"
-  [n]
+  [n {:keys [migrations]}]
   (let [new-ts (new-time-stamp)
-        migration-name (str migrations-path new-ts "_"
+        migration-name (str migrations new-ts "_"
                             (->snake_case_string n) ".edn")]
-    (.mkdir (io/file migrations-path))
+    (.mkdir (io/file migrations))
     (spit migration-name
           (with-out-str
             (pprint/pprint {:tx-data []})))
