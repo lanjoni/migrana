@@ -1,6 +1,5 @@
 (ns migrana.core
-  (:require [camel-snake-kebab.core :refer [->snake_case_string]]
-            [clj-time.core :as time]
+  (:require [camel-snake-kebab.core :as csk]
             [clj-time.format :as format]
             [clj-time.local :as local]
             [clojure.data :as data]
@@ -98,7 +97,7 @@
   "Compares the schema in the DB and on disk and creates an inferred migration file if there
   are differences."
   [conn options]
-  (let [{:keys [migrana/timestamp migrana/schema]} (current-db-info conn)
+  (let [{:keys [migrana/schema]} (current-db-info conn)
         schema-on-disk (-> (:schema options) slurp edn/read-string)
         diff (data/diff (set schema-on-disk) (set (edn/read-string schema)))
         gap-on-disk (vec (first diff))]
@@ -117,7 +116,7 @@
 
 (defn ^:private dryrun-new-inference
   [last-tx options]
-  (let [{:keys [timestamp schema]} last-tx
+  (let [{:keys [schema]} last-tx
         schema-on-disk (-> (:schema options) slurp edn/read-string)
         diff (data/diff (set schema-on-disk) (set schema))
         gap-on-disk (vec (first diff))]
@@ -232,7 +231,7 @@
   [n {:keys [migrations]}]
   (let [new-ts (new-time-stamp)
         migration-name (str migrations new-ts "_"
-                            (->snake_case_string n) ".edn")]
+                            (csk/->snake_case n) ".edn")]
     (.mkdir (io/file migrations))
     (spit migration-name
           (with-out-str

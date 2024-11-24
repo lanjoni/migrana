@@ -25,7 +25,7 @@
   Syntax: lein migrana info <URI>
 
   <URI> defaults to environment variable $DATOMIC_URI if available."
-  [project args]
+  [_project args]
   (if-let [uri (or (second args) (environ/env :datomic-uri))]
     (core/info uri)
     (main/abort "Must specify <URI>. More details: $ lein help migrana info")))
@@ -34,7 +34,7 @@
   "Creates new manual migration.
 
   Syntax: lein migrana create <name>"
-  [project args]
+  [_project args]
   (let [{:keys [options arguments errors summary]} (parse-opts args cli-options)
         n (second arguments)]
     (cond
@@ -55,7 +55,7 @@
   Syntax: lein migrana dry-run <URI> <options>
 
   <URI> defaults to environment variable $DATOMIC_URI if available."
-  [project args]
+  [_project args]
   (let [{:keys [options arguments errors summary]} (parse-opts args cli-options)
         uri (or (second arguments) (environ/env :datomic-uri))]
     (cond
@@ -76,7 +76,7 @@
   Syntax: lein migrana run <URI> <options>
 
   <URI> defaults to environment variable $DATOMIC_URI if available."
-  [project args]
+  [_project args]
   (let [{:keys [options arguments errors summary]} (parse-opts args cli-options)
         uri (or (second arguments) (environ/env :datomic-uri))]
     (cond
@@ -97,7 +97,7 @@
   Syntax: lein migrana set-db <URI> <timestamp> <options>
 
   <URI> defaults to environment variable $DATOMIC_URI if available."
-  [project args]
+  [_project args]
   (letfn [(abort []
             (main/abort
              "Must specify <URI> and <timestamp>. More details: $ lein help migrana set-db"))]
