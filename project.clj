@@ -6,13 +6,13 @@
 
   :dependencies [[org.clojure/clojure "1.9.0"]
                  [clj-time "0.14.2"]
-                 [com.datomic/datomic-pro "0.9.5561.62"]
+                 [com.datomic/peer "1.0.7260"]
                  [environ "1.1.0"]
                  [camel-snake-kebab "0.4.0"]
                  [org.clojure/tools.cli "0.3.5"]]
 
   :eval-in-leiningen true
-  
+
   :plugins [[lein-environ "1.1.0"]]
 
   :repositories {"my.datomic.com" {:url "https://my.datomic.com/repo"
@@ -21,7 +21,7 @@
   :min-lein-version "2.6.1"
 
   :target-path "target/%s"
-  
+
   :uberjar-name "migrana.jar"
 
   :profiles {:uberjar {:aot :all}})
